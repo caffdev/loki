@@ -1,75 +1,50 @@
-# ABOUTME: AlertmanagerConfig CR for routing alerts to Slack and a catch-all receiver.
-# ABOUTME: Defines receivers, routes by severity, and grouping/throttle settings.
+# AlertmanagerConfig CR — SES SMTP receiver configuration
+# Requires K8s secret 'alertmanager-smtp-secret' in monitoring namespace with keys:
+#   username  — SES SMTP username (IAM-generated)
+#   password  — SES SMTP password (IAM-generated)
+#   to_address — recipient email address for alerts
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
-  name: alertmanager-routes
+  name: ses-email-config
   namespace: monitoring
   labels:
-    app.kubernetes.io/part-of: observability
-    alertmanagerConfig: kube-prometheus-stack
+    app.kubernetes.io/part-of: kube-prometheus-stack
 spec:
   route:
-    receiver: slack-default
-    groupBy:
-      - alertname
-      - namespace
+    groupBy: ['alertname', 'namespace']
     groupWait: 30s
     groupInterval: 5m
     repeatInterval: 4h
+    receiver: 'ses-email'
     routes:
-      - receiver: slack-critical
+      - receiver: 'ses-email'
         matchers:
           - name: severity
             value: critical
             matchType: "="
-        repeatInterval: 1h
-      - receiver: slack-default
-        matchers:
-          - name: severity
-            value: warning
-            matchType: "="
-        repeatInterval: 4h
-
+        continue: false
   receivers:
-    - name: slack-critical
-      slackConfigs:
-        - apiURL:
-            name: alertmanager-slack-webhook
-            key: critical-webhook-url
-          channel: "#alerts-critical"
+    - name: 'ses-email'
+      emailConfigs:
+        - to: placeholder@example.com
+          from: alertmanager@monitoring.internal
+          smarthost: email-smtp.us-east-1.amazonaws.com:587
+          authUsername:
+            name: alertmanager-smtp-secret
+            key: username
+          authPassword:
+            name: alertmanager-smtp-secret
+            key: password
+          requireTLS: true
           sendResolved: true
-          title: |
-            [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}
-          text: |
-            *Severity:* {{ .CommonLabels.severity }}
-            *Namespace:* {{ .CommonLabels.namespace }}
-            *Description:* {{ .CommonAnnotations.description }}
-
-    - name: slack-default
-      slackConfigs:
-        - apiURL:
-            name: alertmanager-slack-webhook
-            key: default-webhook-url
-          channel: "#alerts-warning"
-          sendResolved: true
-          title: |
-            [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}
-          text: |
-            *Severity:* {{ .CommonLabels.severity }}
-            *Namespace:* {{ .CommonLabels.namespace }}
-            *Description:* {{ .CommonAnnotations.description }}
----
-# Placeholder secret for Slack webhook URLs.
-# Encrypt with SOPS before committing real values.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: alertmanager-slack-webhook
-  namespace: monitoring
-  labels:
-    app.kubernetes.io/part-of: observability
-type: Opaque
-stringData:
-  critical-webhook-url: "https://hooks.slack.com/services/REPLACE/WITH/REAL_WEBHOOK"
-  default-webhook-url: "https://hooks.slack.com/services/REPLACE/WITH/REAL_WEBHOOK"
+  inhibitRules:
+    - sourceMatch:
+        - name: severity
+          value: critical
+          matchType: "="
+      targetMatch:
+        - name: severity
+          value: warning
+          matchType: "="
+      equal: ['alertname', 'namespace']
