@@ -1,0 +1,8 @@
+build/
+*.enc.yaml.dec
+.DS_Store
+cdk/cdk.out/
+__pycache__/
+*.pyc
+.venv/
+node_modules/

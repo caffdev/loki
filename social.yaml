@@ -1,0 +1,44 @@
+# ABOUTME: Interaction journal for AI assistant (JARVIS) and Kyle.
+# ABOUTME: Date-stamped entries capturing decisions, context, and project evolution.
+
+entries:
+  - date: "2026-03-03"
+    who: "Archimedes"
+    summary: |
+      Project kickoff. Audited the initial CLAUDE.md which was a sprawling
+      architecture guide with several unresolved either/or choices (Promtail vs
+      Fluent Bit, Grafana Operator vs sidecar, SOPS vs Sealed Secrets, IRSA vs
+      Pod Identity). Resolved all ambiguities with Kyle and locked decisions:
+      kube-prometheus-stack, Grafana Operator, Loki simple-scalable, Fluent Bit,
+      SOPS, Pod Identity, Python CDK. Two clusters (eks-staging, eks-prod), two
+      namespaces (monitoring, logging). Rewrote CLAUDE.md as concise project
+      instructions, moved architecture detail to docs/arch.md, scaffolded the
+      full repo structure, and implemented all Kustomize bases and cluster overlays.
+    decisions:
+      - "Fluent Bit over Promtail (Promtail deprecated upstream)"
+      - "Grafana Operator with GrafanaDashboard CRs (not sidecar pattern)"
+      - "SOPS for secrets (not Sealed Secrets)"
+      - "Pod Identity (not IRSA)"
+      - "CDK in Python"
+      - "Two namespaces: monitoring + logging"
+      - "Two clusters: eks-staging + eks-prod"
+    tags: [kickoff, architecture, scaffold]
+
+  - date: "2026-03-03"
+    who: "Archimedes"
+    summary: |
+      Completed Phase 2 (CDK) and Phase 4 (dashboards + alerting rules) ahead
+      of staging deployment. Refactored CDK from a monolithic stack into
+      composable constructs (LokiStorage, PodIdentityRoles, EcrRepos) with
+      CfnPodIdentityAssociation wiring. Built 4 Grafana dashboards
+      (cluster-overview, namespace-resources, log-explorer, alerting-overview)
+      as both JSON source files and GrafanaDashboard CRs. Added 3
+      PrometheusRule CRs covering cluster health, Prometheus/Alertmanager
+      self-health, and Loki/FluentBit health. Created AlertmanagerConfig CR
+      with Slack receivers (placeholder webhooks). Phase 3 (staging) is
+      deferred pending cluster access.
+    decisions:
+      - "CDK split into 3 composable constructs vs monolithic stack"
+      - "Dashboard CRs split into individual files vs single dashboards.yaml"
+      - "Phase reordering: 1→2→4→3→5 (dashboards before staging)"
+    tags: [cdk, dashboards, alerting, phase-2, phase-4]

@@ -1,0 +1,296 @@
+# ABOUTME: Helm values for the loki chart in Distributed (microservices) mode.
+# ABOUTME: Production-grade config: per-component scaling, Memcached caching tiers, S3 via Pod Identity.
+# ABOUTME: All DockerHub images routed through ECR pull-through cache at docker-hub/<image>.
+
+deploymentMode: Distributed
+
+# ---------------------------------------------------------------------------
+# Image overrides — ECR pull-through cache for all DockerHub-sourced images.
+# Replace <ECR_REGISTRY> with your account's ECR hostname, e.g.:
+#   123456789012.dkr.ecr.us-east-1.amazonaws.com
+# ---------------------------------------------------------------------------
+loki:
+  image:
+    registry: <ECR_REGISTRY>
+    repository: docker-hub/grafana/loki
+    tag: "3.6.7"  # chart 6.55.0 appVersion
+
+  auth_enabled: false
+
+  # Canonical replication factor — read by distributor, querier, and other
+  # ring-aware components. Must match ingester replica count.
+  commonConfig:
+    replication_factor: 3
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storage:
+    # bucketNames is a top-level key under storage, NOT nested under s3.
+    # The s3 block is connection config only (region, endpoint, etc.).
+    bucketNames:
+      chunks: loki-chunks-staging
+      ruler: loki-chunks-staging   # reuse chunks bucket; no ruler rules in use
+    type: s3
+    s3:
+      region: us-east-1
+      # Pod Identity handles auth — no accessKeyId/secretAccessKey needed.
+
+  limits_config:
+    retention_period: 336h
+    max_query_length: 721h
+    max_query_parallelism: 32
+    ingestion_rate_mb: 10
+    ingestion_burst_size_mb: 20
+
+  compactor:
+    retention_enabled: true
+    working_directory: /var/loki/compactor
+    delete_request_store: s3
+
+  # Replication factor must match ingester replica count for full HA
+  ingester:
+    lifecycler:
+      ring:
+        replication_factor: 3
+
+# ---------------------------------------------------------------------------
+# Distributor — receives Promtail pushes, fans out to ingesters via ring
+# ---------------------------------------------------------------------------
+distributor:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 650m
+      memory: 666Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: distributor
+
+# ---------------------------------------------------------------------------
+# Ingester — writes log streams to WAL + flushes to S3; ring-based HA
+# ---------------------------------------------------------------------------
+ingester:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 650m
+      memory: 1331Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: ingester
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ebs-gp3-sc
+
+# ---------------------------------------------------------------------------
+# Query frontend — shards LogQL queries and dispatches to query scheduler
+# ---------------------------------------------------------------------------
+queryFrontend:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 325m
+      memory: 333Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+
+# ---------------------------------------------------------------------------
+# Query scheduler — decouples query dispatching from frontend; prevents
+# thundering-herd when frontend restarts under load
+# ---------------------------------------------------------------------------
+queryScheduler:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 130m
+      memory: 167Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+
+# ---------------------------------------------------------------------------
+# Querier — executes LogQL against S3 + chunk/index caches; stateless
+# ---------------------------------------------------------------------------
+querier:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 650m
+      memory: 1331Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+
+# ---------------------------------------------------------------------------
+# Index gateway — serves TSDB index files from persistent storage;
+# keeps queriers fully stateless and Karpenter-evictable
+# ---------------------------------------------------------------------------
+indexGateway:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 325m
+      memory: 666Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ebs-gp3-sc
+
+# ---------------------------------------------------------------------------
+# Compactor — singleton; applies retention, merges index chunks
+# ---------------------------------------------------------------------------
+compactor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 325m
+      memory: 666Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ebs-gp3-sc
+
+# ---------------------------------------------------------------------------
+# Gateway (nginx) — single ingress point for push and query traffic
+# ---------------------------------------------------------------------------
+gateway:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 130m
+      memory: 167Mi
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+
+# ---------------------------------------------------------------------------
+# Memcached — chunks cache
+# Caches raw S3 chunks for the hot data window; reduces S3 GET cost and
+# cuts query latency for recent log ranges.
+# ---------------------------------------------------------------------------
+chunksCache:
+  enabled: true
+  replicas: 2
+  allocatedMemory: 4096   # 4 GB per replica
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  resources:
+    requests:
+      cpu: 250m
+      memory: 4352Mi      # allocatedMemory + ~256Mi OS overhead
+    limits:
+      cpu: 325m
+      memory: 5658Mi
+
+# ---------------------------------------------------------------------------
+# Memcached — results cache
+# Caches evaluated LogQL query results; serves repeated Grafana dashboard
+# queries (30s refresh cycles) from memory instead of re-executing.
+# ---------------------------------------------------------------------------
+resultsCache:
+  enabled: true
+  replicas: 2
+  allocatedMemory: 2048   # 2 GB
+  nodeSelector:
+    karpenter.sh/nodepool: logging
+  resources:
+    requests:
+      cpu: 100m
+      memory: 2304Mi      # allocatedMemory + ~256Mi OS overhead
+    limits:
+      cpu: 130m
+      memory: 2995Mi
+
+# ---------------------------------------------------------------------------
+# Memcached image overrides — DockerHub → ECR pull-through cache
+# ---------------------------------------------------------------------------
+memcached:
+  image:
+    registry: <ECR_REGISTRY>
+    repository: docker-hub/memcached
+    tag: "1.6.23-alpine"
+
+# NOTE: memcached exporter image override — the loki chart bundles its own
+# memcached exporter as part of the cache StatefulSets. There is no top-level
+# memcachedExporter key; the exporter image is set via the chart's internal
+# subchart values (e.g. chunksCache.memcachedExporter.image if exposed in
+# chart version). Verify the exact override path against chart 6.55.0 values
+# before go-live if the ECR pull-through cache is enforced at the node level.
+
+# ---------------------------------------------------------------------------
+# Monitoring
+# ---------------------------------------------------------------------------
+monitoring:
+  serviceMonitor:
+    enabled: true
+    labels:
+      prometheus: kube-prometheus-stack
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false
+
+# Disable non-distributed deployment mode components
+singleBinary:
+  replicas: 0
+
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+backend:
+  replicas: 0

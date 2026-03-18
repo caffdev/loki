@@ -1,0 +1,14 @@
+# ABOUTME: Kustomize wrapper for the Promtail Helm chart.
+# ABOUTME: Deploys a DaemonSet that collects container logs and forwards them to Loki.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: logging
+
+helmCharts:
+  - name: promtail
+    repo: https://grafana.github.io/helm-charts
+    version: "6.16.6"
+    releaseName: promtail
+    namespace: logging
+    valuesFile: values.yaml

@@ -1,0 +1,128 @@
+# ABOUTME: GrafanaDashboard CR for exploring logs stored in Loki.
+# ABOUTME: Provides log volume, error rates, top talkers, and a live log stream panel.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: log-explorer
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  json: |
+    {
+      "annotations": { "list": [] },
+      "editable": false,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "loki" },
+            "query": "label_values(namespace)",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" }
+          },
+          {
+            "name": "pod",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "loki" },
+            "query": "label_values({namespace=~\"$namespace\"}, pod)",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" }
+          },
+          {
+            "name": "search",
+            "type": "textbox",
+            "current": { "text": "", "value": "" },
+            "label": "Log Search"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "Log Volume by Namespace",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (namespace) (count_over_time({namespace=~\"$namespace\"}[1m]))",
+              "legendFormat": "{{ namespace }}"
+            }
+          ]
+        },
+        {
+          "title": "Error Rate by Namespace",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 6 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (namespace) (count_over_time({namespace=~\"$namespace\"} |~ \"(?i)error|exception|fatal|panic\"[1m]))",
+              "legendFormat": "{{ namespace }} errors"
+            }
+          ]
+        },
+        {
+          "title": "Warning Rate by Namespace",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (namespace) (count_over_time({namespace=~\"$namespace\"} |~ \"(?i)warn\"[1m]))",
+              "legendFormat": "{{ namespace }} warnings"
+            }
+          ]
+        },
+        {
+          "title": "Top 10 Logging Pods",
+          "type": "bargauge",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "topk(10, sum by (pod) (count_over_time({namespace=~\"$namespace\"}[5m])))",
+              "legendFormat": "{{ pod }}"
+            }
+          ]
+        },
+        {
+          "title": "Log Stream",
+          "type": "logs",
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 18 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{namespace=~\"$namespace\", pod=~\"$pod\"} |~ \"$search\"",
+              "legendFormat": ""
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["logs", "loki", "explorer"],
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Log Explorer",
+      "uid": "log-explorer"
+    }

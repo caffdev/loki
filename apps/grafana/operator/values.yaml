@@ -1,0 +1,13 @@
+# ABOUTME: Helm values for the Grafana Operator.
+# ABOUTME: Configures operator resource limits and Karpenter node placement.
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+nodeSelector:
+  karpenter.sh/nodepool: monitoring

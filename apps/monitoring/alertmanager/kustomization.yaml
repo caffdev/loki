@@ -1,0 +1,12 @@
+# ABOUTME: Kustomize base for Alertmanager custom rules and receiver configuration.
+# ABOUTME: Provides PrometheusRule CRs and Alertmanager config patches beyond the Helm defaults.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - rules/cluster-health.yaml
+  - rules/prometheus-self-health.yaml
+  - rules/loki-health.yaml
+  - alertmanager-config.yaml

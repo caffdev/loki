@@ -1,0 +1,158 @@
+# ABOUTME: GrafanaDashboard CR for per-namespace resource usage.
+# ABOUTME: Shows CPU, memory, network, pod status filtered by namespace variable.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: namespace-resources
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  jsonnet: ""
+  url: ""
+  json: |
+    {
+      "annotations": { "list": [] },
+      "editable": false,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(kube_pod_info, namespace)",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "CPU Usage by Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", container!=\"\"}[5m]))",
+              "legendFormat": "{{ pod }}"
+            }
+          ]
+        },
+        {
+          "title": "Memory Usage by Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=~\"$namespace\", container!=\"\"})",
+              "legendFormat": "{{ pod }}"
+            }
+          ]
+        },
+        {
+          "title": "CPU Requests vs Limits vs Actual",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", resource=\"cpu\"})",
+              "legendFormat": "Requests"
+            },
+            {
+              "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", resource=\"cpu\"})",
+              "legendFormat": "Limits"
+            },
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", container!=\"\"}[5m]))",
+              "legendFormat": "Actual"
+            }
+          ]
+        },
+        {
+          "title": "Memory Requests vs Limits vs Actual",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_container_resource_requests{namespace=~\"$namespace\", resource=\"memory\"})",
+              "legendFormat": "Requests"
+            },
+            {
+              "expr": "sum(kube_pod_container_resource_limits{namespace=~\"$namespace\", resource=\"memory\"})",
+              "legendFormat": "Limits"
+            },
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", container!=\"\"})",
+              "legendFormat": "Actual"
+            }
+          ]
+        },
+        {
+          "title": "Pod Restart Count",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sort_desc(sum by (namespace, pod, container) (kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}))",
+              "legendFormat": "{{ namespace }}/{{ pod }}/{{ container }}",
+              "format": "table",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "title": "Pod Status",
+          "type": "piechart",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count by (phase) (kube_pod_status_phase{namespace=~\"$namespace\"} == 1)",
+              "legendFormat": "{{ phase }}"
+            }
+          ]
+        },
+        {
+          "title": "Network Receive (bytes/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (namespace) (rate(container_network_receive_bytes_total{namespace=~\"$namespace\"}[5m]))",
+              "legendFormat": "{{ namespace }}"
+            }
+          ]
+        },
+        {
+          "title": "Network Transmit (bytes/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (namespace) (rate(container_network_transmit_bytes_total{namespace=~\"$namespace\"}[5m]))",
+              "legendFormat": "{{ namespace }}"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["namespace", "resources"],
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Namespace Resources",
+      "uid": "namespace-resources"
+    }

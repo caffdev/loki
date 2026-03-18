@@ -1,0 +1,17 @@
+# ABOUTME: Production-specific patches for Loki deployment.
+# ABOUTME: Points to production S3 bucket with higher replicas and longer retention.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-prod-overrides
+  namespace: logging
+  labels:
+    app.kubernetes.io/part-of: observability
+data:
+  notes: |
+    Production overrides:
+    - S3 bucket: loki-chunks-prod
+    - Read replicas: 3
+    - Write replicas: 3
+    - Backend replicas: 2
+    - Retention: 720h (30 days)

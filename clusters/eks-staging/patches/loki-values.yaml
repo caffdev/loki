@@ -1,0 +1,17 @@
+# ABOUTME: Staging-specific patches for Loki deployment.
+# ABOUTME: Points to staging S3 bucket and reduces replica count.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-staging-overrides
+  namespace: logging
+  labels:
+    app.kubernetes.io/part-of: observability
+data:
+  notes: |
+    Staging overrides:
+    - S3 bucket: loki-chunks-staging
+    - Read replicas: 1
+    - Write replicas: 1
+    - Backend replicas: 1
+    - Retention: 168h (7 days)

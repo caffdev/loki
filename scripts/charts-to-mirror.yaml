@@ -1,0 +1,24 @@
+charts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    version: "67.9.0"
+    dest_repo: monitoring/kube-prometheus-stack
+
+  - name: grafana-operator
+    repo: https://grafana.github.io/helm-charts
+    chart: grafana-operator
+    version: "v5.15.1"
+    dest_repo: monitoring/grafana-operator
+
+  - name: loki
+    repo: https://grafana.github.io/helm-charts
+    chart: loki
+    version: "6.24.0"
+    dest_repo: logging/loki
+
+  - name: fluent-bit
+    repo: https://fluent.github.io/helm-charts
+    chart: fluent-bit
+    version: "0.48.0"
+    dest_repo: logging/fluent-bit

@@ -1,0 +1,27 @@
+# ABOUTME: Production-specific Helm value overrides for the loki chart.
+# ABOUTME: Applied on top of apps/logging/loki/values.yaml via kustomization helmCharts.
+
+loki:
+  storage:
+    bucketNames:
+      chunks: loki-chunks-prod
+      ruler: loki-chunks-prod
+
+  limits_config:
+    retention_period: 720h   # 30 days for production
+
+# Production replica counts (base values carry these already; explicit here for clarity)
+ingester:
+  replicas: 3
+
+distributor:
+  replicas: 3
+
+querier:
+  replicas: 3
+
+indexGateway:
+  replicas: 2
+
+gateway:
+  replicas: 2

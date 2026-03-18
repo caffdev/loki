@@ -1,0 +1,96 @@
+# ABOUTME: PrometheusRule CR for Loki and Fluent Bit health alerts.
+# ABOUTME: Detects ingestion errors, S3 write failures, and log collection issues.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: loki-health
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: loki-health
+      interval: 60s
+      rules:
+        - alert: LokiRequestErrors
+          expr: |
+            100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m])) by (namespace, job, route)
+            /
+            sum(rate(loki_request_duration_seconds_count[5m])) by (namespace, job, route)
+            > 10
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Loki {{ $labels.route }} error rate above 10%"
+            description: "Loki route {{ $labels.route }} in {{ $labels.namespace }} is returning {{ $value | printf \"%.1f\" }}% errors."
+
+        - alert: LokiIngesterFlushFailing
+          expr: increase(loki_ingester_chunks_flushed_total{result="fail"}[1h]) > 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Loki ingester failed to flush chunks"
+            description: "Loki ingester in {{ $labels.namespace }} is failing to flush chunks to storage. Logs may be lost."
+
+        - alert: LokiRingUnhealthy
+          expr: loki_ring_members{state="Unhealthy"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Loki ring has unhealthy members"
+            description: "{{ $value }} Loki {{ $labels.name }} ring members are in Unhealthy state."
+
+        - alert: LokiHighLatencyQuery
+          expr: |
+            histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket{route=~"loki_api_v1_query.*"}[5m])) by (le))
+            > 30
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki query p99 latency above 30s"
+            description: "Loki query latency p99 is {{ $value | printf \"%.1f\" }}s, indicating possible performance issues."
+
+        - alert: LokiCompactorNotRunning
+          expr: loki_compactor_running != 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki compactor is not running"
+            description: "Loki compactor has not been running for 15 minutes. Retention and index compaction are stalled."
+
+    - name: fluent-bit-health
+      interval: 60s
+      rules:
+        - alert: FluentBitOutputErrors
+          expr: rate(fluentbit_output_errors_total[5m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Fluent Bit output errors on {{ $labels.node }}"
+            description: "Fluent Bit on node {{ $labels.node }} is failing to send logs to {{ $labels.name }}."
+
+        - alert: FluentBitOutputRetries
+          expr: rate(fluentbit_output_retries_total[5m]) > 5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Fluent Bit high retry rate on {{ $labels.node }}"
+            description: "Fluent Bit is retrying output at {{ $value | printf \"%.1f\" }}/s. Possible backpressure from Loki."
+
+        - alert: FluentBitNoInput
+          expr: rate(fluentbit_input_bytes_total[5m]) == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Fluent Bit not receiving logs on {{ $labels.node }}"
+            description: "Fluent Bit on node {{ $labels.node }} has received zero bytes for 15 minutes."

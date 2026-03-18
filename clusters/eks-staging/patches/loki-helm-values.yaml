@@ -1,0 +1,36 @@
+# ABOUTME: Staging-specific Helm value overrides for the loki chart.
+# ABOUTME: Applied on top of apps/logging/loki/values.yaml via kustomization helmCharts.
+
+loki:
+  storage:
+    bucketNames:
+      chunks: loki-chunks-staging
+      ruler: loki-chunks-staging
+
+  limits_config:
+    retention_period: 168h   # 7 days for staging
+
+# Reduced replica counts for staging cost savings
+ingester:
+  replicas: 2
+
+distributor:
+  replicas: 2
+
+querier:
+  replicas: 2
+
+indexGateway:
+  replicas: 1
+
+gateway:
+  replicas: 1
+
+# Single cache replica for staging
+chunksCache:
+  replicas: 1
+  allocatedMemory: 1024
+
+resultsCache:
+  replicas: 1
+  allocatedMemory: 512

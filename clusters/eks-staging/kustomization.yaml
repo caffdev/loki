@@ -1,0 +1,51 @@
+# ABOUTME: Top-level kustomization for the eks-staging cluster.
+# ABOUTME: Loki helmChart is defined here (not inherited) so cluster-specific
+# ABOUTME: values (bucket, replicas, retention) can be injected via valuesInline.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../apps/observability/common
+  - ../../apps/monitoring/prometheus
+  - ../../apps/monitoring/alertmanager
+  - ../../apps/logging/collector
+  - ../../apps/grafana/operator
+
+# Loki is defined here rather than inherited from apps/logging/loki so that
+# cluster-specific Helm values (S3 bucket, replica counts, retention) can be
+# applied. apps/logging/loki/values.yaml carries all shared base config.
+helmCharts:
+  - name: loki
+    repo: https://grafana.github.io/helm-charts
+    version: "6.55.0"
+    releaseName: loki
+    namespace: logging
+    valuesFile: ../../apps/logging/loki/values.yaml
+    valuesInline:
+      loki:
+        storage:
+          bucketNames:
+            chunks: loki-chunks-staging
+            ruler: loki-chunks-staging
+        limits_config:
+          retention_period: 168h   # 7 days
+      ingester:
+        replicas: 2
+      distributor:
+        replicas: 2
+      querier:
+        replicas: 2
+      indexGateway:
+        replicas: 1
+      gateway:
+        replicas: 1
+      chunksCache:
+        replicas: 1
+        allocatedMemory: 1024
+      resultsCache:
+        replicas: 1
+        allocatedMemory: 512
+
+patches:
+  - path: patches/prometheus-values.yaml
+  - path: patches/grafana-instance.yaml

@@ -1,0 +1,18 @@
+# ABOUTME: Production-specific patches for Prometheus resources.
+# ABOUTME: Higher replicas, longer retention, and larger resource limits for prod workloads.
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: kube-prometheus-stack-prometheus
+  namespace: monitoring
+spec:
+  replicas: 2
+  retention: 30d
+  retentionSize: "100GB"
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 16Gi

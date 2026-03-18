@@ -1,0 +1,5 @@
+# ABOUTME: SOPS configuration for encrypting secrets in this repository.
+# ABOUTME: Uses AWS KMS for encryption — replace the ARN with your actual KMS key.
+creation_rules:
+  - path_regex: .*\.enc\.yaml$
+    kms: "arn:aws:kms:us-east-1:REPLACE_ACCOUNT_ID:key/REPLACE_KEY_ID"

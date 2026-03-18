@@ -1,0 +1,13 @@
+# ABOUTME: Production-specific patch for the Grafana instance.
+# ABOUTME: Sets the production root URL and enables OIDC authentication.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  config:
+    server:
+      root_url: https://grafana.example.com
+    auth.generic_oauth:
+      enabled: "true"

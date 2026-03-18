@@ -1,0 +1,22 @@
+# ABOUTME: Kustomize base for the Grafana Operator, datasource CRs, and dashboard CRs.
+# ABOUTME: Deploys Grafana via the operator pattern with Prometheus and Loki datasources.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+helmCharts:
+  - name: grafana-operator
+    repo: https://grafana.github.io/helm-charts
+    version: "v5.15.1"
+    releaseName: grafana-operator
+    namespace: monitoring
+    valuesFile: values.yaml
+
+resources:
+  - grafana-instance.yaml
+  - datasources.yaml
+  - dashboard-cluster-overview.yaml
+  - dashboard-namespace-resources.yaml
+  - dashboard-log-explorer.yaml
+  - dashboard-alerting-overview.yaml

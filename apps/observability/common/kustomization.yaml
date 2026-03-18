@@ -1,0 +1,9 @@
+# ABOUTME: Kustomize base for shared observability resources.
+# ABOUTME: Creates namespaces, RBAC, and network policies used by all monitoring components.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  - rbac.yaml
+  - network-policies.yaml

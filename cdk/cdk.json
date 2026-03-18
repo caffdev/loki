@@ -1,0 +1,7 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "staging_account": "REPLACE_WITH_STAGING_ACCOUNT_ID",
+    "prod_account": "REPLACE_WITH_PROD_ACCOUNT_ID"
+  }
+}

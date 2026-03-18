@@ -1,0 +1,11 @@
+# ABOUTME: Staging-specific patch for the Grafana instance.
+# ABOUTME: Sets the staging root URL.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  config:
+    server:
+      root_url: https://grafana-staging.example.com

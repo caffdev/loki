@@ -1,0 +1,41 @@
+# ABOUTME: GrafanaDatasource CRs for Prometheus and Loki.
+# ABOUTME: Configures Grafana to query metrics from Prometheus and logs from Loki.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasource:
+    name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+    isDefault: true
+    jsonData:
+      timeInterval: "30s"
+      httpMethod: POST
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasource:
+    name: Loki
+    type: loki
+    access: proxy
+    url: http://loki-gateway.logging.svc:80
+    jsonData:
+      maxLines: 1000

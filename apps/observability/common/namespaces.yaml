@@ -1,0 +1,17 @@
+# ABOUTME: Namespace definitions for the observability stack.
+# ABOUTME: Creates monitoring and logging namespaces with standard labels.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: observability
+    pod-security.kubernetes.io/enforce: privileged

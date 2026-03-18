@@ -1,0 +1,18 @@
+# ABOUTME: Staging-specific patches for Prometheus resources.
+# ABOUTME: Reduces replicas and retention for cost savings in non-production.
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: kube-prometheus-stack-prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  retention: 7d
+  retentionSize: "20GB"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 4Gi

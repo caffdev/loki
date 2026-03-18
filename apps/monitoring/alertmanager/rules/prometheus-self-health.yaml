@@ -1,0 +1,91 @@
+# ABOUTME: PrometheusRule CR for Prometheus and Alertmanager self-monitoring.
+# ABOUTME: Detects scrape failures, WAL issues, operator errors, and notification failures.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-self-health
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: prometheus-health
+      interval: 60s
+      rules:
+        - alert: PrometheusTargetDown
+          expr: up == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Prometheus target {{ $labels.job }}/{{ $labels.instance }} is down"
+            description: "Target {{ $labels.instance }} in job {{ $labels.job }} has been unreachable for 10 minutes."
+
+        - alert: PrometheusScrapeErrors
+          expr: increase(prometheus_target_scrapes_exceeded_sample_limit_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Prometheus scrape sample limit exceeded"
+            description: "Scrapes are exceeding the sample limit. Consider increasing sample_limit or reducing cardinality."
+
+        - alert: PrometheusRuleFailures
+          expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Prometheus rule evaluation failures"
+            description: "Prometheus has failed to evaluate {{ $value }} rules in the last 5 minutes."
+
+        - alert: PrometheusWALCorruption
+          expr: increase(prometheus_tsdb_wal_corruptions_total[1h]) > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Prometheus WAL corruption detected"
+            description: "Prometheus TSDB has detected WAL corruption. Data loss may occur."
+
+        - alert: PrometheusStorageFull
+          expr: |
+            (prometheus_tsdb_storage_blocks_bytes / prometheus_tsdb_retention_limit_bytes) * 100 > 90
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Prometheus storage is above 90% of retention limit"
+            description: "Prometheus TSDB is using {{ $value | printf \"%.0f\" }}% of configured storage limit."
+
+        - alert: PrometheusNotConnectedToAlertmanager
+          expr: prometheus_notifications_alertmanagers_discovered < 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Prometheus has no discovered Alertmanager instances"
+            description: "Prometheus is not connected to any Alertmanager. Alerts will not be delivered."
+
+    - name: alertmanager-health
+      interval: 60s
+      rules:
+        - alert: AlertmanagerNotificationFailing
+          expr: rate(alertmanager_notifications_failed_total[5m]) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Alertmanager failing to send notifications via {{ $labels.integration }}"
+            description: "Alertmanager has been failing to send {{ $labels.integration }} notifications for 10 minutes."
+
+        - alert: AlertmanagerClusterMemberDown
+          expr: alertmanager_cluster_members != on() group_left count(up{job=~".*alertmanager.*"} == 1)
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alertmanager cluster member mismatch"
+            description: "Alertmanager cluster expected member count does not match actual up instances."

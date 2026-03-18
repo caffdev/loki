@@ -1,0 +1,78 @@
+# ABOUTME: GrafanaDashboard CRs for all monitoring dashboards.
+# ABOUTME: References dashboard JSON inline — sourced from the dashboards/ directory.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: cluster-overview
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  json: |
+    {
+      "annotations": { "list": [] },
+      "editable": false,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Cluster CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))",
+              "legendFormat": "CPU Usage"
+            }
+          ]
+        },
+        {
+          "title": "Cluster Memory Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{container!=\"\"})",
+              "legendFormat": "Memory (Working Set)"
+            }
+          ]
+        },
+        {
+          "title": "Pod Count by Namespace",
+          "type": "bargauge",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count by (namespace) (kube_pod_info)",
+              "legendFormat": "{{ namespace }}"
+            }
+          ]
+        },
+        {
+          "title": "Node Status",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+              "legendFormat": "Ready Nodes"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["cluster", "overview"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Cluster Overview",
+      "uid": "cluster-overview"
+    }
