@@ -38,6 +38,9 @@ spec:
             key: password
           requireTLS: true
           sendResolved: true
+          headers:
+            Subject: '{{ template "eks.subject" . }}'
+          html: '{{ template "eks.html" . }}'
   inhibitRules:
     - sourceMatch:
         - name: severity

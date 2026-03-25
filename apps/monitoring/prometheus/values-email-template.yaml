@@ -1,0 +1,102 @@
+# ABOUTME: Alertmanager email template values for kube-prometheus-stack.
+# ABOUTME: Kept separate from values.yaml so the HTML template can be edited without touching infra config.
+# ABOUTME: kube-prometheus-stack stores templateFiles as a Secret, mounts it into Alertmanager,
+# ABOUTME: and adds it to the templates: list in alertmanager.yaml automatically.
+#
+# Canonical readable source: apps/monitoring/alertmanager/eks-email.tmpl
+# This file is the copy that actually gets deployed — keep them in sync.
+
+alertmanager:
+  templateFiles:
+    eks-email.tmpl: |-
+      {{ define "eks.subject" -}}
+      [{{ .Status | toUpper }}{{ if gt (len .Alerts.Firing) 0 }}:{{ len .Alerts.Firing }}{{ end }}] {{ with .CommonLabels.alertname }}{{ . }}{{ else }}Multiple Alerts{{ end }}{{ with .CommonLabels.namespace }} · {{ . }}{{ end }}
+      {{- end }}
+
+      {{ define "eks.html" -}}
+      <!DOCTYPE html>
+      <html lang="en">
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+      <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
+      <tr><td align="center" style="padding:24px 12px;">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e7eb;max-width:580px;">
+        {{- $numFiring   := len .Alerts.Firing }}
+        {{- $numResolved := len .Alerts.Resolved }}
+        <tr><td style="background:{{ if eq .Status "firing" }}#dc2626{{ else }}#16a34a{{ end }};border-radius:7px 7px 0 0;padding:20px 24px;">
+          <p style="margin:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase;">EKS Monitoring</p>
+          <p style="margin:6px 0 4px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.2;">
+            {{- if eq .Status "firing" -}}{{ $numFiring }} Alert{{ if gt $numFiring 1 }}s{{ end }} Firing
+            {{- else -}}Alert{{ if gt $numResolved 1 }}s{{ end }} Resolved{{- end -}}
+          </p>
+          {{ if .GroupLabels.SortedPairs -}}
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.85);">
+            {{- range .GroupLabels.SortedPairs }}{{ .Name }}: <strong>{{ .Value }}</strong>&nbsp; {{ end -}}
+          </p>
+          {{- end }}
+        </td></tr>
+        {{ if .Alerts.Firing -}}
+        <tr><td style="padding:20px 24px 4px;">
+          <p style="margin:0;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Firing ({{ $numFiring }})</p>
+        </td></tr>
+        {{ range .Alerts.Firing -}}
+        <tr><td style="padding:4px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:4px;background:#fffbfb;">
+          <tr><td style="padding:14px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td><span style="font-size:14px;font-weight:700;color:#111827;">{{ index .Labels "alertname" }}</span></td>
+              <td align="right">
+                {{- $sev := index .Labels "severity" -}}
+                <span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#fff;padding:3px 8px;border-radius:3px;background:{{- if eq $sev "critical" }}#dc2626{{ else if eq $sev "warning" }}#d97706{{ else }}#6b7280{{ end }};">{{ $sev }}</span>
+              </td>
+            </tr></table>
+            {{ with index .Annotations "summary" }}<p style="margin:8px 0 2px;font-size:13px;color:#374151;font-weight:600;">{{ . }}</p>{{ end }}
+            {{ with index .Annotations "description" }}<p style="margin:2px 0 10px;font-size:12px;color:#6b7280;line-height:1.5;">{{ . }}</p>{{ end }}
+            <table cellpadding="0" cellspacing="2">
+            {{ range .Labels.SortedPairs -}}
+              {{- if and (ne .Name "alertname") (ne .Name "severity") (ne .Name "prometheus") (ne .Name "job") (ne .Name "endpoint") (ne .Name "service") }}
+              <tr>
+                <td style="font-size:11px;color:#9ca3af;padding:0 12px 0 0;white-space:nowrap;vertical-align:top;">{{ .Name }}</td>
+                <td style="font-size:11px;color:#374151;font-family:'Courier New',monospace;">{{ .Value }}</td>
+              </tr>
+              {{- end }}
+            {{- end }}
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;padding-top:10px;border-top:1px solid #fee2e2;">
+            <tr>
+              <td style="font-size:11px;color:#9ca3af;">Firing since {{ .StartsAt.Format "Jan 02 2006, 15:04 UTC" }}</td>
+              <td align="right"><a href="{{ .GeneratorURL }}" style="font-size:11px;color:#2563eb;text-decoration:none;font-weight:500;">View in Prometheus →</a></td>
+            </tr></table>
+          </td></tr></table>
+        </td></tr>
+        {{ end -}}
+        {{ end }}
+        {{ if .Alerts.Resolved -}}
+        <tr><td style="padding:16px 24px 4px;">
+          <p style="margin:0;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Resolved ({{ $numResolved }})</p>
+        </td></tr>
+        {{ range .Alerts.Resolved -}}
+        <tr><td style="padding:4px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:4px;background:#f0fdf4;">
+          <tr><td style="padding:12px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td><span style="font-size:14px;font-weight:700;color:#111827;">{{ index .Labels "alertname" }}</span></td>
+              <td align="right"><span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.8px;color:#fff;background:#16a34a;padding:3px 8px;border-radius:3px;">RESOLVED</span></td>
+            </tr></table>
+            {{ with index .Annotations "summary" }}<p style="margin:6px 0 4px;font-size:12px;color:#374151;">{{ . }}</p>{{ end }}
+            <p style="margin:0;font-size:11px;color:#6b7280;">{{ .StartsAt.Format "Jan 02, 15:04" }} → {{ .EndsAt.Format "Jan 02, 15:04 UTC" }}</p>
+          </td></tr></table>
+        </td></tr>
+        {{ end -}}
+        {{ end }}
+        <tr><td style="padding:14px 24px;border-top:1px solid #f3f4f6;">
+          <p style="margin:0;font-size:11px;color:#9ca3af;">
+            Sent by Alertmanager &bull; <a href="{{ .ExternalURL }}" style="color:#9ca3af;text-decoration:none;">Open Alertmanager</a>
+          </p>
+        </td></tr>
+      </table>
+      </td></tr>
+      </table>
+      </body>
+      </html>
+      {{- end }}

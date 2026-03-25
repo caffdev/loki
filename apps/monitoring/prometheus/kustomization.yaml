@@ -11,4 +11,6 @@ helmCharts:
     version: "67.9.0"
     releaseName: kube-prometheus-stack
     namespace: monitoring
-    valuesFile: values.yaml
+    valuesFiles:
+      - values.yaml
+      - values-email-template.yaml
